@@ -29,6 +29,7 @@ import tarfile
 import sys
 import os
 import time
+import re
 import codecs
 
 usage = """create index file:
@@ -80,15 +81,30 @@ def indextar(dbtarfile,indexfile):
                         print('ETA: '+str(int(eta))+'s (estimate '+str(int(estimate))+'s)')
     print('done.')
 
-def lookup(dbtarfile,indexfile,path):
+def lookup(dbtarfile,indexfile,regex,savefile=False,savefiletgtdir='.'):
     with open(dbtarfile, 'rb') as tar:
         with  open(indexfile, 'r') as outfile:
+            found = False
             for line in outfile.readlines():
                 m = line[:-1].rsplit(" ", 2)
-                if path == m[0]:
+                # match regexp
+                match = re.search(regex, m[0])
+                if match:
+                    path = match.string
                     tar.seek(int(m[1]))
                     buffer = tar.read(int(m[2]))
-                    os.write (sys.stdout.fileno (), buffer)
+                    if savefile:
+                        path = os.path.join(savefiletgtdir, path)
+                        # note: python3 only!
+                        os.makedirs(os.path.dirname(path), exist_ok=True)
+                        with open(path, 'wb') as f:
+                            f.write(buffer)
+                    else:
+                        os.write (sys.stdout.fileno (), buffer)
+                    found = True
+            if not found:
+                raise Exception("File not found in archive.")
+
 
 
 def main():
